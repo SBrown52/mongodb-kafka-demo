@@ -1,0 +1,59 @@
+version: "3.9"
+services:
+  mongo:
+    container_name: mongo
+    image: "mongo:latest"
+    ports:
+      - "27017:27017"
+  zookeeper:
+    container_name: zookeeper
+    image: docker.io/bitnami/zookeeper:3.8
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+  kafka:
+    container_name: kafka
+    image: docker.io/bitnami/kafka:3.3
+    ports:
+      - "29092:29092"
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: yes
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: EXTERNAL_SAME_HOST://:29092,INTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL_SAME_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL_SAME_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    depends_on:
+      - zookeeper
+  kafka-connect:
+    container_name: kafka-connect
+    image: confluentinc/cp-kafka-connect:7.1.0-1-ubi8
+    environment:
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8083:8083"
+
+    command:
+      - bash
+      - -c
+      - |
+        confluent-hub install --no-prompt mongodb/kafka-connect-mongodb:1.8.1
+        /etc/confluent/docker/run
+
