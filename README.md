@@ -7,6 +7,7 @@ We run the following images:
  - apache zookeeper 
  - apache kafka
  - kafka connect
+ 
 The last 3 all use Confluent Platform images
 
 ## Steps
